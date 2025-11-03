@@ -52,15 +52,17 @@ spec:
       ports:
         - protocol: TCP
           port: 6379
-    # OPTIONAL: Allow external HTTPS for package downloads
-    # Comment out these rules if you want to block all external access
+    # Allow external HTTP/HTTPS for package downloads
+    # This allows communication with external IPs (not just cluster namespaces)
+    # Remove the 'except' clause if you want to allow access to other namespaces too
     - to:
-        - namespaceSelector: {}
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              # Block access to cluster internal network (adjust if your cluster uses different CIDR)
+              - 10.42.0.0/16
       ports:
         - protocol: TCP
           port: 443
-    - to:
-        - namespaceSelector: {}
-      ports:
         - protocol: TCP
           port: 80
