@@ -38,12 +38,6 @@ spec:
               value: "https://{{ .Values.ingress.host }}"
             - name: OVERLEAF_NAV_TITLE
               value: {{ .Values.overleaf.appName | quote }}
-            - name: OVERLEAF_HEADER_IMAGE_URL
-              value: ""
-            - name: OVERLEAF_LEFT_FOOTER
-              value: ""
-            - name: OVERLEAF_RIGHT_FOOTER
-              value: ""
             - name: OVERLEAF_ADMIN_EMAIL
               value: "admin@{{ .Values.ingress.host }}"
             - name: OVERLEAF_EMAIL_FROM_ADDRESS
