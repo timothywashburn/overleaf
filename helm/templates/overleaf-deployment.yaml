@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: overleaf
-          image: sharelatex/sharelatex:latest
+          image: sharelatex/sharelatex:5.5.6
           imagePullPolicy: Always
           ports:
             - containerPort: 80
