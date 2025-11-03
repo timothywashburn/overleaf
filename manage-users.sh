@@ -260,6 +260,92 @@ get_temp_password() {
     "$SCRIPT_DIR/get-temp-password.sh" "$email"
 }
 
+# Function to change user password
+change_password() {
+    local email=$1
+    local password=$2
+
+    if [ -z "$email" ]; then
+        echo ""
+        list_users
+        echo ""
+        read -p "Enter email of user: " email
+    fi
+
+    if [ -z "$email" ]; then
+        print_color "$RED" "No email provided. Aborting."
+        return 1
+    fi
+
+    if [ -z "$password" ]; then
+        read -sp "Enter new password: " password
+        echo ""
+        read -sp "Confirm new password: " password_confirm
+        echo ""
+
+        if [ "$password" != "$password_confirm" ]; then
+            print_color "$RED" "✗ Passwords do not match"
+            return 1
+        fi
+    fi
+
+    print_header "Change Password: $email"
+
+    # Run the Node.js command in background and capture output to a temp file
+    local TEMP_OUTPUT="/tmp/overleaf-changepass-$$.txt"
+    kubectl exec -n $NAMESPACE $OVERLEAF_DEPLOYMENT -- /bin/bash -c "cd /overleaf/services/web && node -e \"
+const AuthenticationManager = require('./app/src/Features/Authentication/AuthenticationManager.js');
+const UserGetter = require('./app/src/Features/User/UserGetter.js');
+
+const email = '$email';
+const password = '$password';
+
+UserGetter.getUserByAnyEmail(email, (err, user) => {
+    if (err || !user) {
+        console.error('User not found');
+        process.exit(1);
+    }
+
+    AuthenticationManager.setUserPassword(user, password, (err) => {
+        if (err) {
+            console.error('Error setting password:', err);
+            process.exit(1);
+        }
+        console.log('OK');
+        process.exit(0);
+    });
+});
+\" 2>&1" > "$TEMP_OUTPUT" &
+
+    # Store the PID
+    local CMD_PID=$!
+
+    # Wait for "OK" to appear in output (max 10 seconds)
+    for i in {1..20}; do
+        if grep -q "OK" "$TEMP_OUTPUT" 2>/dev/null; then
+            break
+        fi
+        sleep 0.5
+    done
+
+    # Kill the background process
+    kill $CMD_PID 2>/dev/null || true
+    wait $CMD_PID 2>/dev/null || true
+
+    # Read the result
+    local RESULT=$(cat "$TEMP_OUTPUT" 2>/dev/null || echo "")
+    rm -f "$TEMP_OUTPUT"
+
+    if echo "$RESULT" | grep -q "PasswordMustBeDifferentError"; then
+        print_color "$RED" "✗ New password must be different from current password"
+    elif echo "$RESULT" | grep -q "OK"; then
+        print_color "$GREEN" "✓ Password changed successfully!"
+    else
+        print_color "$RED" "✗ Failed to change password"
+        echo "$RESULT"
+    fi
+}
+
 # Function to show statistics
 show_stats() {
     print_header "User Statistics"
@@ -284,9 +370,10 @@ show_menu() {
     echo "4) Delete user"
     echo "5) Toggle admin status"
     echo "6) Verify user email"
-    echo "7) Get temporary access password"
-    echo "8) Show statistics"
-    echo "9) Exit"
+    echo "7) Change user password"
+    echo "8) Get temporary access password"
+    echo "9) Show statistics"
+    echo "10) Exit"
     echo ""
 }
 
@@ -305,7 +392,7 @@ main() {
 
     while true; do
         show_menu
-        read -p "Select an option (1-9): " choice
+        read -p "Select an option (1-10): " choice
 
         case $choice in
             1)
@@ -327,12 +414,15 @@ main() {
                 verify_email
                 ;;
             7)
-                get_temp_password
+                change_password
                 ;;
             8)
-                show_stats
+                get_temp_password
                 ;;
             9)
+                show_stats
+                ;;
+            10)
                 print_color "$GREEN" "Goodbye!"
                 exit 0
                 ;;
