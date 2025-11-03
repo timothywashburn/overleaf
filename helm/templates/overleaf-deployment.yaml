@@ -28,7 +28,11 @@ spec:
               value: {{ .Values.overleaf.appName | quote }}
             - name: OVERLEAF_MONGO_URL
               value: "mongodb://mongodb:27017/sharelatex?replicaSet={{ .Values.mongodb.replicaSetName }}"
+            - name: MONGO_URL
+              value: "mongodb://mongodb:27017/sharelatex?replicaSet={{ .Values.mongodb.replicaSetName }}"
             - name: REDIS_HOST
+              value: "redis"
+            - name: OVERLEAF_REDIS_HOST
               value: "redis"
             - name: OVERLEAF_SITE_URL
               value: "https://{{ .Values.ingress.host }}"
