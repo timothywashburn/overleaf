@@ -9,7 +9,6 @@ overleaf:
     storageClass: "local"
 
 mongodb:
-  port: "30020"
   replicaSetName: "overleaf"
   storage:
     size: "2Gi"
