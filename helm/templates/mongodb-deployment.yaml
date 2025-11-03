@@ -34,8 +34,6 @@ spec:
           volumeMounts:
             - name: mongodb-data
               mountPath: /data/db
-            - name: mongodb-init
-              mountPath: /docker-entrypoint-initdb.d
           livenessProbe:
             exec:
               command:
@@ -65,6 +63,3 @@ spec:
         - name: mongodb-data
           persistentVolumeClaim:
             claimName: mongodb-pvc
-        - name: mongodb-init
-          configMap:
-            name: mongodb-init
