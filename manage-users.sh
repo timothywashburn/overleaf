@@ -179,8 +179,8 @@ toggle_admin() {
         return 1
     fi
 
-    # Get current admin status
-    local current_status=$(kubectl exec -n $NAMESPACE $MONGODB_DEPLOYMENT -- mongosh --quiet --eval "db.getSiblingDB('sharelatex').users.findOne({email: '$email'}, {isAdmin: 1, _id: 0})" 2>/dev/null | jq -r '.isAdmin // false')
+    # Get current admin status using EJSON
+    local current_status=$(kubectl exec -n $NAMESPACE $MONGODB_DEPLOYMENT -- mongosh --quiet --eval "EJSON.stringify(db.getSiblingDB('sharelatex').users.findOne({email: '$email'}, {isAdmin: 1, _id: 0}))" 2>/dev/null | jq -r '.isAdmin // false')
 
     if [ "$current_status" == "null" ]; then
         print_color "$RED" "✗ User $email not found"
@@ -237,6 +237,29 @@ verify_email() {
     fi
 }
 
+# Function to get temporary access password
+get_temp_password() {
+    local email=$1
+
+    if [ -z "$email" ]; then
+        echo ""
+        list_users
+        echo ""
+        read -p "Enter email of user to access: " email
+    fi
+
+    if [ -z "$email" ]; then
+        print_color "$RED" "No email provided. Aborting."
+        return 1
+    fi
+
+    # Get the directory where this script is located
+    local SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+    # Call the standalone script
+    "$SCRIPT_DIR/get-temp-password.sh" "$email"
+}
+
 # Function to show statistics
 show_stats() {
     print_header "User Statistics"
@@ -261,8 +284,9 @@ show_menu() {
     echo "4) Delete user"
     echo "5) Toggle admin status"
     echo "6) Verify user email"
-    echo "7) Show statistics"
-    echo "8) Exit"
+    echo "7) Get temporary access password"
+    echo "8) Show statistics"
+    echo "9) Exit"
     echo ""
 }
 
@@ -281,7 +305,7 @@ main() {
 
     while true; do
         show_menu
-        read -p "Select an option (1-8): " choice
+        read -p "Select an option (1-9): " choice
 
         case $choice in
             1)
@@ -303,9 +327,12 @@ main() {
                 verify_email
                 ;;
             7)
-                show_stats
+                get_temp_password
                 ;;
             8)
+                show_stats
+                ;;
+            9)
                 print_color "$GREEN" "Goodbye!"
                 exit 0
                 ;;
