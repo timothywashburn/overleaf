@@ -1,0 +1,1 @@
+`tlmgr install scheme-full` to install dependencies needed to compile latex documents
