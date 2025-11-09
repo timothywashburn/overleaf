@@ -15,7 +15,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: init-replica-set
-          image: mongo:7.0
+          image: mongo:8.0
           command:
             - /bin/bash
             - -c
