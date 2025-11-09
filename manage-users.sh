@@ -3,7 +3,7 @@
 set -e
 
 NAMESPACE="overleaf"
-MONGODB_DEPLOYMENT="deployment/mongodb"
+MONGODB_POD="pod/mongodb-0"
 OVERLEAF_DEPLOYMENT="deployment/overleaf"
 
 # Colors for output
@@ -36,7 +36,7 @@ list_users() {
     echo "Fetching users..."
 
     # Fetch data from MongoDB using EJSON format for proper JSON output
-    local users_json=$(kubectl exec -n $NAMESPACE $MONGODB_DEPLOYMENT -- mongosh --quiet --eval "
+    local users_json=$(kubectl exec -n $NAMESPACE $MONGODB_POD -- mongosh --quiet --eval "
         EJSON.stringify(db.getSiblingDB('sharelatex').users.find({}, {
             email: 1,
             isAdmin: 1,
@@ -70,7 +70,7 @@ view_user() {
 
     print_header "User Details: $email"
 
-    local user_data=$(kubectl exec -n $NAMESPACE $MONGODB_DEPLOYMENT -- mongosh --quiet --eval "
+    local user_data=$(kubectl exec -n $NAMESPACE $MONGODB_POD -- mongosh --quiet --eval "
         EJSON.stringify(db.getSiblingDB('sharelatex').users.findOne({email: '$email'}))
     " 2>/dev/null)
 
@@ -127,7 +127,7 @@ delete_user() {
     fi
 
     # Check if user exists
-    local user_exists=$(kubectl exec -n $NAMESPACE $MONGODB_DEPLOYMENT -- mongosh --quiet --eval "db.getSiblingDB('sharelatex').users.countDocuments({email: '$email'})" 2>/dev/null)
+    local user_exists=$(kubectl exec -n $NAMESPACE $MONGODB_POD -- mongosh --quiet --eval "db.getSiblingDB('sharelatex').users.countDocuments({email: '$email'})" 2>/dev/null)
 
     if [ "$user_exists" == "0" ]; then
         print_color "$RED" "✗ User $email not found"
@@ -180,7 +180,7 @@ toggle_admin() {
     fi
 
     # Get current admin status using EJSON
-    local current_status=$(kubectl exec -n $NAMESPACE $MONGODB_DEPLOYMENT -- mongosh --quiet --eval "EJSON.stringify(db.getSiblingDB('sharelatex').users.findOne({email: '$email'}, {isAdmin: 1, _id: 0}))" 2>/dev/null | jq -r '.isAdmin // false')
+    local current_status=$(kubectl exec -n $NAMESPACE $MONGODB_POD -- mongosh --quiet --eval "EJSON.stringify(db.getSiblingDB('sharelatex').users.findOne({email: '$email'}, {isAdmin: 1, _id: 0}))" 2>/dev/null | jq -r '.isAdmin // false')
 
     if [ "$current_status" == "null" ]; then
         print_color "$RED" "✗ User $email not found"
@@ -193,7 +193,7 @@ toggle_admin() {
         echo "Current status: ADMIN"
         read -p "Remove admin privileges? (y/n): " confirm
         if [[ $confirm == "y" || $confirm == "Y" ]]; then
-            kubectl exec -n $NAMESPACE $MONGODB_DEPLOYMENT -- mongosh --quiet --eval "db.getSiblingDB('sharelatex').users.updateOne({email: '$email'}, {\$set: {isAdmin: false}})" 2>/dev/null > /dev/null
+            kubectl exec -n $NAMESPACE $MONGODB_POD -- mongosh --quiet --eval "db.getSiblingDB('sharelatex').users.updateOne({email: '$email'}, {\$set: {isAdmin: false}})" 2>/dev/null > /dev/null
             print_color "$GREEN" "✓ Admin privileges removed"
         else
             print_color "$YELLOW" "Cancelled"
@@ -202,7 +202,7 @@ toggle_admin() {
         echo "Current status: USER"
         read -p "Grant admin privileges? (y/n): " confirm
         if [[ $confirm == "y" || $confirm == "Y" ]]; then
-            kubectl exec -n $NAMESPACE $MONGODB_DEPLOYMENT -- mongosh --quiet --eval "db.getSiblingDB('sharelatex').users.updateOne({email: '$email'}, {\$set: {isAdmin: true}})" 2>/dev/null > /dev/null
+            kubectl exec -n $NAMESPACE $MONGODB_POD -- mongosh --quiet --eval "db.getSiblingDB('sharelatex').users.updateOne({email: '$email'}, {\$set: {isAdmin: true}})" 2>/dev/null > /dev/null
             print_color "$GREEN" "✓ Admin privileges granted"
         else
             print_color "$YELLOW" "Cancelled"
@@ -228,7 +228,7 @@ verify_email() {
 
     print_header "Verify Email: $email"
 
-    kubectl exec -n $NAMESPACE $MONGODB_DEPLOYMENT -- mongosh --quiet --eval "db.getSiblingDB('sharelatex').users.updateOne({email: '$email'}, {\$set: {'emails.0.confirmedAt': new Date()}})" 2>/dev/null > /dev/null
+    kubectl exec -n $NAMESPACE $MONGODB_POD -- mongosh --quiet --eval "db.getSiblingDB('sharelatex').users.updateOne({email: '$email'}, {\$set: {'emails.0.confirmedAt': new Date()}})" 2>/dev/null > /dev/null
 
     if [ $? -eq 0 ]; then
         print_color "$GREEN" "✓ Email verified successfully!"
@@ -278,15 +278,7 @@ change_password() {
     fi
 
     if [ -z "$password" ]; then
-        read -sp "Enter new password: " password
-        echo ""
-        read -sp "Confirm new password: " password_confirm
-        echo ""
-
-        if [ "$password" != "$password_confirm" ]; then
-            print_color "$RED" "✗ Passwords do not match"
-            return 1
-        fi
+        read -p "Enter new password: " password
     fi
 
     print_header "Change Password: $email"
@@ -350,9 +342,9 @@ UserGetter.getUserByAnyEmail(email, (err, user) => {
 show_stats() {
     print_header "User Statistics"
 
-    local total=$(kubectl exec -n $NAMESPACE $MONGODB_DEPLOYMENT -- mongosh --quiet --eval "db.getSiblingDB('sharelatex').users.countDocuments()" 2>/dev/null)
-    local admins=$(kubectl exec -n $NAMESPACE $MONGODB_DEPLOYMENT -- mongosh --quiet --eval "db.getSiblingDB('sharelatex').users.countDocuments({isAdmin: true})" 2>/dev/null)
-    local verified=$(kubectl exec -n $NAMESPACE $MONGODB_DEPLOYMENT -- mongosh --quiet --eval "db.getSiblingDB('sharelatex').users.countDocuments({'emails.confirmedAt': {\$exists: true}})" 2>/dev/null)
+    local total=$(kubectl exec -n $NAMESPACE $MONGODB_POD -- mongosh --quiet --eval "db.getSiblingDB('sharelatex').users.countDocuments()" 2>/dev/null)
+    local admins=$(kubectl exec -n $NAMESPACE $MONGODB_POD -- mongosh --quiet --eval "db.getSiblingDB('sharelatex').users.countDocuments({isAdmin: true})" 2>/dev/null)
+    local verified=$(kubectl exec -n $NAMESPACE $MONGODB_POD -- mongosh --quiet --eval "db.getSiblingDB('sharelatex').users.countDocuments({'emails.confirmedAt': {\$exists: true}})" 2>/dev/null)
 
     echo "Total users:      $total"
     echo "Administrators:   $admins"
