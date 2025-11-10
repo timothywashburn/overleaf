@@ -17,6 +17,19 @@ spec:
         app: overleaf
     spec:
       automountServiceAccountToken: false
+      initContainers:
+        - name: install-texlive-full
+          image: sharelatex/sharelatex:6.0.0
+          command:
+            - /bin/bash
+            - -c
+            - |
+              echo "Installing TeX Live scheme-full..."
+              tlmgr install scheme-full
+              echo "TeX Live installation complete!"
+          volumeMounts:
+            - name: texlive-data
+              mountPath: /usr/local/texlive
       containers:
         - name: overleaf
           image: sharelatex/sharelatex:6.0.0
@@ -46,6 +59,8 @@ spec:
           volumeMounts:
             - name: overleaf-data
               mountPath: /var/lib/overleaf
+            - name: texlive-data
+              mountPath: /usr/local/texlive
           livenessProbe:
             httpGet:
               path: /
@@ -71,4 +86,6 @@ spec:
         - name: overleaf-data
           persistentVolumeClaim:
             claimName: overleaf-pvc
+        - name: texlive-data
+          emptyDir: {}
       terminationGracePeriodSeconds: 60
